@@ -36,9 +36,9 @@ class ApprovalQueue:
     def list_pending(self, tenant_id: str) -> list[PendingAction]:
         return [a for a in self._pending.values() if a.tenant_id == tenant_id and a.status == "pending"]
 
-    def decide(self, action_id: str, approve: bool) -> PendingAction | None:
+    def decide(self, action_id: str, tenant_id: str, approve: bool) -> PendingAction | None:
         action = self._pending.get(action_id)
-        if not action:
+        if not action or action.tenant_id != tenant_id or action.status != "pending":
             return None
         action.status = "approved" if approve else "rejected"
         return action
