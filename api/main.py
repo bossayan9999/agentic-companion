@@ -1,10 +1,18 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from agent.brain import run_turn, execute_approved_action
 from agent.approval import approval_queue
 import agent.osint.recon  # noqa: F401
 
 app = FastAPI(title="Agentic AI Companion")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # tighten this to your actual frontend origin before going to production
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class ChatRequest(BaseModel):
