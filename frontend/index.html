@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Console — Agentic Companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14171C; --panel:#1B2029; --panel-2:#20262F; --hair:#2A3140;
+    --text:#E7EAEE; --muted:#7C8695; --muted-2:#54606F;
+    --amber:#E8A33D; --green:#4FAE82; --red:#E2574C;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--ink); color:var(--text);
+    font-family:'Inter',sans-serif; font-size:14px; line-height:1.5;
+    height:100vh; overflow:hidden;
+  }
+  .display{font-family:'Space Grotesk',sans-serif;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  header{
+    display:flex; align-items:center; gap:12px; padding:14px 18px;
+    border-bottom:1px solid var(--hair); background:var(--panel);
+  }
+  header .brand{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; letter-spacing:.02em;}
+  header .brand span{color:var(--muted-2);}
+  .status-dot{width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green);}
+
+  .layout{display:flex; height:calc(100vh - 53px);}
+  @media (max-width: 900px){ .layout{flex-direction:column; height:auto;} .pane{max-height:none !important;} }
+
+  .pane{overflow-y:auto;}
+  .pane::-webkit-scrollbar{width:6px;}
+  .pane::-webkit-scrollbar-thumb{background:var(--hair); border-radius:3px;}
+
+  /* LEFT: model + memory */
+  .left{width:230px; flex-shrink:0; border-right:1px solid var(--hair); padding:16px; background:var(--panel);}
+  .section-label{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted-2); margin-bottom:8px; font-weight:600;}
+  .model-btn{
+    width:100%; text-align:left; padding:9px 10px; margin-bottom:5px; border-radius:8px;
+    border:1px solid transparent; background:transparent; color:var(--muted); cursor:pointer;
+    font-family:'IBM Plex Mono',monospace; font-size:12.5px; transition:.15s;
+  }
+  .model-btn:hover{background:var(--panel-2); color:var(--text);}
+  .model-btn.active{background:var(--panel-2); border-color:var(--hair); color:var(--text);}
+  .model-btn.active::before{content:"●"; color:var(--green); margin-right:6px; font-size:9px;}
+  .fact-row{padding:8px 0; border-bottom:1px solid var(--hair); font-size:12.5px;}
+  .fact-row .k{color:var(--muted-2); font-size:11px;}
+  .empty-note{color:var(--muted-2); font-size:12px; font-style:italic;}
+
+  /* CENTER: chat */
+  .center{flex:1; display:flex; flex-direction:column; min-width:0;}
+  .thread{flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:14px;}
+  .msg{max-width:70%; padding:10px 14px; border-radius:var(--radius); font-size:14px;}
+  .msg.user{align-self:flex-end; background:var(--panel-2); border:1px solid var(--hair);}
+  .msg.agent{align-self:flex-start; background:transparent; border:1px solid var(--hair);}
+  .msg .role{font-size:10.5px; color:var(--muted-2); margin-bottom:4px; text-transform:uppercase; letter-spacing:.06em;}
+  .composer{display:flex; gap:8px; padding:14px; border-top:1px solid var(--hair); background:var(--panel);}
+  .composer input{
+    flex:1; background:var(--panel-2); border:1px solid var(--hair); border-radius:8px;
+    padding:11px 14px; color:var(--text); font-family:'Inter',sans-serif; font-size:14px; outline:none;
+  }
+  .composer input:focus{border-color:var(--muted-2);}
+  .composer button{
+    background:var(--amber); color:#1a1408; border:none; border-radius:8px; padding:0 18px;
+    font-weight:600; cursor:pointer; font-family:'Space Grotesk',sans-serif;
+  }
+  .composer button:disabled{opacity:.4; cursor:default;}
+
+  /* RIGHT: approval queue */
+  .right{width:290px; flex-shrink:0; border-left:1px solid var(--hair); padding:16px; background:var(--panel);}
+  .queue-item{
+    border:1px solid var(--hair); border-radius:var(--radius); padding:11px 12px; margin-bottom:10px;
+    background:var(--panel-2);
+  }
+  .queue-item .row1{display:flex; align-items:center; gap:8px; margin-bottom:6px;}
+  .light{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
+  .light.pending{background:var(--amber); box-shadow:0 0 6px var(--amber); animation:pulse 1.4s infinite;}
+  .light.auto{background:var(--green); box-shadow:0 0 6px var(--green);}
+  .light.blocked{background:var(--red); box-shadow:0 0 6px var(--red);}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.35;}}
+  .tool-name{font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:500;}
+  .tool-input{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); word-break:break-all; margin:6px 0;}
+  .decide-row{display:flex; gap:6px; margin-top:8px;}
+  .decide-row button{
+    flex:1; font-size:11.5px; padding:6px 0; border-radius:6px; border:1px solid var(--hair);
+    background:transparent; color:var(--text); cursor:pointer; font-family:'Inter',sans-serif;
+  }
+  .decide-row button.approve{border-color:var(--green); color:var(--green);}
+  .decide-row button.reject{border-color:var(--red); color:var(--red);}
+  .decide-row button:hover{filter:brightness(1.3);}
+  #config-banner{
+    font-size:11.5px; color:var(--muted); background:var(--panel-2); border:1px solid var(--hair);
+    border-radius:8px; padding:10px; margin-bottom:14px; line-height:1.5;
+  }
+  #config-banner code{color:var(--amber);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="status-dot"></div>
+  <div class="brand">CONSOLE <span>/ agentic-companion</span></div>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT -->
+  <div class="pane left">
+    <div id="config-banner">
+      Set <code>API_BASE</code> at the top of the script to your running backend URL (e.g. <code>http://localhost:8000</code>).
+    </div>
+    <div class="section-label">Model</div>
+    <button class="model-btn active" data-model="claude">claude</button>
+    <button class="model-btn" data-model="gpt4o">gpt4o</button>
+    <button class="model-btn" data-model="gemini">gemini</button>
+    <button class="model-btn" data-model="llama">llama</button>
+    <button class="model-btn" data-model="deepseek">deepseek</button>
+    <button class="model-btn" data-model="grok">grok</button>
+
+    <div style="margin-top:22px;" class="section-label">Session</div>
+    <div class="fact-row"><div class="k">tenant_id</div><div id="tenant-display" class="mono">demo</div></div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="pane center">
+    <div class="thread" id="thread">
+      <div class="msg agent">
+        <div class="role">Agent</div>
+        Ready. Ask me to do something — anything that needs approval will show up in the queue on the right.
+      </div>
+    </div>
+    <div class="composer">
+      <input id="input" type="text" placeholder="Message the agent…" autocomplete="off">
+      <button id="send">Send</button>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="pane right">
+    <div class="section-label">Approval Queue</div>
+    <div id="queue">
+      <div class="empty-note">Nothing pending.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ---- Configure this to point at your running FastAPI backend ----
+  const API_BASE = "http://localhost:8000";
+  const TENANT_ID = "demo";
+  let currentModel = "claude";
+
+  const thread = document.getElementById('thread');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('send');
+  const queueEl = document.getElementById('queue');
+
+  document.querySelectorAll('.model-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentModel = btn.dataset.model;
+    });
+  });
+
+  function addMessage(role, text) {
+    const div = document.createElement('div');
+    div.className = `msg ${role}`;
+    div.innerHTML = `<div class="role">${role}</div>${text.replace(/\n/g, '<br>')}`;
+    thread.appendChild(div);
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  async function sendMessage() {
+    const text = input.value.trim();
+    if (!text) return;
+    addMessage('user', text);
+    input.value = '';
+    sendBtn.disabled = true;
+    try {
+      const res = await fetch(`${API_BASE}/chat`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tenant_id: TENANT_ID, message: text, model: currentModel})
+      });
+      if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      const data = await res.json();
+      addMessage('agent', data.reply);
+    } catch (err) {
+      addMessage('agent', `Couldn't reach the backend (${err.message}). Check API_BASE and that uvicorn is running.`);
+    } finally {
+      sendBtn.disabled = false;
+      refreshQueue();
+    }
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+
+  async function refreshQueue() {
+    try {
+      const res = await fetch(`${API_BASE}/approvals/${TENANT_ID}`);
+      if (!res.ok) return;
+      const items = await res.json();
+      if (!items.length) {
+        queueEl.innerHTML = '<div class="empty-note">Nothing pending.</div>';
+        return;
+      }
+      queueEl.innerHTML = items.map(item => `
+        <div class="queue-item">
+          <div class="row1">
+            <div class="light pending"></div>
+            <div class="tool-name">${item.tool_name}</div>
+          </div>
+          <div class="tool-input">${JSON.stringify(item.tool_input)}</div>
+          <div class="decide-row">
+            <button class="approve" onclick="decide('${item.id}', true)">Approve</button>
+            <button class="reject" onclick="decide('${item.id}', false)">Reject</button>
+          </div>
+        </div>
+      `).join('');
+    } catch (err) { /* backend not reachable yet — stay quiet */ }
+  }
+
+  async function decide(actionId, approve) {
+    try {
+      await fetch(`${API_BASE}/approvals/${actionId}/decide`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tenant_id: TENANT_ID, approve})
+      });
+      refreshQueue();
+    } catch (err) { console.error(err); }
+  }
+
+  refreshQueue();
+  setInterval(refreshQueue, 5000);
+</script>
+
+</body>
+</html>
