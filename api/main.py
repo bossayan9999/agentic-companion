@@ -1,6 +1,8 @@
+import os
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from agent.brain import run_turn, execute_approved_action
 from agent.approval import approval_queue
 import agent.osint.recon  # noqa: F401
@@ -9,16 +11,16 @@ app = FastAPI(title="Agentic AI Companion")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten this to your actual frontend origin before going to production
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=[origin.strip() for origin in os.getenv("APP_ORIGINS", "http://localhost:8000").split(",") if origin.strip()],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-API-Key"],
 )
 
 
 class ChatRequest(BaseModel):
-    tenant_id: str
-    message: str
-    model: str = "claude"  # see agent/providers/registry.py for aliases: claude, gpt4o, gemini, llama, deepseek, grok
+    tenant_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    message: str = Field(min_length=1, max_length=10_000)
+    model: str = Field(default="claude", min_length=1, max_length=64)
 
 
 class ChatResponse(BaseModel):
@@ -41,13 +43,13 @@ def list_pending_approvals(tenant_id: str):
 
 
 class ApprovalDecision(BaseModel):
-    tenant_id: str
+    tenant_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     approve: bool
 
 
 @app.post("/approvals/{action_id}/decide")
 def decide_approval(action_id: str, decision: ApprovalDecision):
-    action = approval_queue.decide(action_id, decision.approve)
+    action = approval_queue.decide(action_id, decision.tenant_id, decision.approve)
     if not action:
         raise HTTPException(status_code=404, detail="Approval request not found")
     if not decision.approve:
